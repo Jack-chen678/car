@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(git clone https://github.com/wshobson/agents.git temp_agents)",
+      "Bash(git clone https://github.com/wshobson/agents.git)",
+      "Bash(git clone https://github.com/wshobson/agents C:Tempagents_research)",
+      "Read(//cygdrive/d/**)",
+      "Bash(git clone https://github.com/wshobson/agents C:/Temp/agents_research)",
+      "Bash(git clone https://github.com/wshobson/agents.git /tmp/agents)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
