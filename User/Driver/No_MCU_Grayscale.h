@@ -79,7 +79,7 @@ void Task_tick(No_MCU_Sensor* sensor);                          // 时基更新�
 unsigned char Get_Digtal_For_User(No_MCU_Sensor* sensor);          									// 获取数字量
 unsigned char Get_Normalize_For_User(No_MCU_Sensor* sensor,unsigned short* result); // 获取归一化值
 unsigned char Get_Anolog_Value(No_MCU_Sensor* sensor,unsigned short* result);       // 获取模拟值
-extern uint32_t dma_buff[91];
+extern uint16_t dma_buff[91];
 extern uint32_t gAdcResult;
 extern volatile bool gCheckADC;
 static void delay_us(uint32_t us);

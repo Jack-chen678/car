@@ -261,10 +261,11 @@ void DMA2_Stream2_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
+    //�� DMA������� ʱ�����жϻص�
     if (hadc == &hadc1) 
     {
         gCheckADC=true;
-        
+        HAL_ADC_Stop_DMA(&hadc1);
     }
 }
 /* USER CODE END 1 */

@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define CALIBRATION_MODE 0  // 0=正常模式, 1=校准模式
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,11 +46,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-unsigned short white[8] = {2820,2974,2769,3067,2736,3131,3082,3112}; // �洢��ɫУ׼ֵ������ 
-unsigned short black[8] = {116,123,125,129,131,132,130,129};     // �洢��ɫУ׼ֵ������
-unsigned short Normal[8];          // ��һ��ֵ����
-             // ������
-No_MCU_Sensor sensor;               // ���������ݽṹ��
+unsigned short white[8] = {2397,2519,2452,2786,2417,3071,2829,3043}; //白色参考值
+unsigned short black[8] = {143,146,150,157,164,171,171,164};    // 黑色参考值
+No_MCU_Sensor sensor;               // 初始化传感器结构体
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -96,14 +94,28 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_USART1_UART_Init();
-  
   /* USER CODE BEGIN 2 */
-  // 初始化传感器（使用white和black校准值）
-  No_MCU_Ganv_Sensor_Init(&sensor, white, black);
 
-//  Uart_Init();
+  #if CALIBRATION_MODE
+    // ========== 校准模式 ==========
+    // 用途：获取黑白线的ADC校准值
+    // 使用步骤：
+    // 1. 将传感器放在白色区域，上电查看串口打印的ADC值
+    // 2. 记录8个通道的值，更新white数组
+    // 3. 将传感器放在黑色区域，查看串口打印的ADC值
+    // 4. 记录8个通道的值，更新black数组
+    // 5. 将CALIBRATION_MODE改为0，重新编译运行
 
-//  HAL_ADC_Start_IT(&hadc1);
+    No_MCU_Ganv_Sensor_Init_Frist(&sensor);  // 首次初始化（不带校准值）
+
+  #else
+    // ========== 正常运行模式 ==========
+    No_MCU_Ganv_Sensor_Init(&sensor, white, black);  // 使用校准值初始化
+    HAL_Delay(10);
+  #endif
+
+  Uart_Init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -111,19 +123,33 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    /* USER CODE BEGIN 3 */
-    // 清零累加数组（关键修复）
-    uint32_t Anolog[8]={0};
 
+    /* USER CODE BEGIN 3 */
+  
+  #if CALIBRATION_MODE
+    uint8_t Digtal=0;
     No_Mcu_Ganv_Sensor_Task_Without_tick(&sensor);
-//        for(uint8_t j=0;j<8;j++)
-//        {
-//            Anolog[j] =sensor.Analog_value[j];
-//        }
-    unsigned char Digtal=Get_Digtal_For_User(&sensor);
+    Digtal = Get_Digtal_For_User(&sensor);
+    // 校准模式：每500ms打印一次原始ADC值
+//    Uart_Printf(&huart1, "ADC: %d,%d,%d,%d,%d,%d,%d,%d\r\n",
+//                sensor.Analog_value[0], sensor.Analog_value[1],
+//                sensor.Analog_value[2], sensor.Analog_value[3],
+//                sensor.Analog_value[4], sensor.Analog_value[5],
+//                sensor.Analog_value[6], sensor.Analog_value[7]);
+      
     
-//    Uart_Printf(&huart1,"Anolog %d,%d,%d,%d,%d,%d,%d,%d\r\n",Anolog[0],Anolog[1],Anolog[2],Anolog[3],Anolog[4],Anolog[5],Anolog[6],Anolog[7]);
-    Uart_Printf(&huart1,"Digtal %d-%d-%d-%d-%d-%d-%d-%d\r\n",(Digtal>>0)&0x01,(Digtal>>1)&0x01,(Digtal>>2)&0x01,(Digtal>>3)&0x01,(Digtal>>4)&0x01,(Digtal>>5)&0x01,(Digtal>>6)&0x01,(Digtal>>7)&0x01);
+    //HAL_Delay(500);
+    #else
+    //
+    uint8_t Digtal=0;
+    No_Mcu_Ganv_Sensor_Task_Without_tick(&sensor);
+    Digtal = ~Get_Digtal_For_User(&sensor);
+    Uart_Printf(&huart1, "Digital: %d-%d-%d-%d-%d-%d-%d-%d\r\n",
+                (Digtal>>0)&0x01, (Digtal>>1)&0x01,
+                (Digtal>>2)&0x01, (Digtal>>3)&0x01,
+                (Digtal>>4)&0x01, (Digtal>>5)&0x01,
+                (Digtal>>6)&0x01, (Digtal>>7)&0x01);
+  #endif
   }
   /* USER CODE END 3 */
 }

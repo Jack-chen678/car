@@ -7,7 +7,10 @@
       "Bash(git clone https://github.com/wshobson/agents C:Tempagents_research)",
       "Read(//cygdrive/d/**)",
       "Bash(git clone https://github.com/wshobson/agents C:/Temp/agents_research)",
-      "Bash(git clone https://github.com/wshobson/agents.git /tmp/agents)"
+      "Bash(git clone https://github.com/wshobson/agents.git /tmp/agents)",
+      "Read(//cygdrive/c/Users/20660/.claude/**)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,11 +1,11 @@
 #include "No_MCU_Grayscale.h"
-uint32_t dma_buff[91]={0};
+uint16_t dma_buff[91]={0};
 uint32_t gAdcResult =0;
 
-// Ìí¼ÓÎ¢ÃëÑÓÊ±º¯Êı£¨¸ü¾«È·£©
+// å¾®ç§’çº§å»¶æ—¶å‡½æ•°ï¼Œç¡®ä¿æ—¶åºå‡†ç¡®
 static void delay_us(uint32_t us)
 {
-  uint32_t ticks = us * (SystemCoreClock / 1000000) / 5;  //  Ô¼5¸öÊ±ÖÓÖÜÆÚ/Ñ­»·
+  uint32_t ticks = us * (SystemCoreClock / 1000000) / 5;  //  çº¦5ä¸ªæ—¶é’Ÿå‘¨æœŸ/å¾ªç¯
 
   while(ticks--) {
       __NOP();
@@ -13,114 +13,113 @@ static void delay_us(uint32_t us)
 }
 volatile bool gCheckADC=false;
 /**
- * @brief  »ñÈ¡ADC²ÉÑùÖµ£¨DMA+ÖĞ¶Ï·½Ê½£¬¶à²ÉÑùÇóÆ½¾ù£©
- * @param  number - ²ÉÑù´ÎÊı£¨´Ë´¦Êµ¼ÊÊ¹ÓÃ90´Î£¬ÓëDMA»º³åÇø³¤¶ÈÆ¥Åä£©
- * @return ²ÉÑù¼ÆËãºóµÄÆ½¾ùÖµ£¨³¬Ê±·µ»Ø0£¬´ú±í²ÉÑùÊ§°Ü£©
+ * @brief  è·å–ADCé‡‡æ ·å€¼ï¼ˆDMA+ä¸­æ–­æ–¹å¼ï¼‰ï¼Œè®¡ç®—å¹³å‡å€¼
+ * @param  number - é‡‡æ ·æ•°é‡ï¼ˆæ­¤å¤„å®é™…ä½¿ç”¨90æ¬¡ï¼Œä¸DMAç¼“å†²åŒºåŒ¹é…ï¼‰
+ * @return é‡‡æ ·å¹³å‡å€¼ï¼ˆè¶…æ—¶è¿”å›0ï¼Œè¡¨ç¤ºé‡‡æ ·å¤±è´¥ï¼‰
  */
 unsigned int adc_getValue(unsigned int number)
 {
-    // Çå¿Õ²ÉÑùÍê³É±êÖ¾£¬ÎªĞÂÒ»ÂÖADC²É¼¯×ö×¼±¸
+    // æ¸…é™¤é‡‡æ ·å®Œæˆæ ‡å¿—ï¼Œä¸ºä¸‹ä¸€æ¬¡ADCé‡‡é›†åšå‡†å¤‡
     gCheckADC = false;
 
-    // Çå¿ÕDMA½ÓÊÕ»º³åÇø£¬±ÜÃâ¾É²ÉÑùÊı¾İ¸ÉÈÅĞÂÊı¾İ
+    // æ¸…ç©ºDMAæ¥æ”¶ç¼“å†²åŒºï¼Œæ¸…é™¤æ®‹ç•™æ•°æ®ï¼Œç¡®ä¿é‡‡æ ·å‡†ç¡®
     memset((uint16_t*)dma_buff, 0, sizeof(dma_buff));
 
-    // Æô¶¯ADC DMA²É¼¯£¨ÖĞ¶Ï´¥·¢·½Ê½£¬²É¼¯Íê³Éºó½øÈëÖĞ¶Ï»Øµ÷£©
-    HAL_ADC_Start_DMA(&hadc1, dma_buff, 90);
+    // å¯åŠ¨ADC DMAé‡‡é›†ï¼Œé‡‡é›†å®Œæˆåè§¦å‘ä¸­æ–­å›è°ƒ
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)dma_buff, 90);
 
-    // µÈ´ıÖĞ¶Ï»Øµ÷ÉèÖÃgCheckADC±êÖ¾£¨×î¶àµÈ´ı£¬·ÀÖ¹³ÌĞòËÀµÈ£©
-    uint16_t timeout = 2000; 
+    // ç­‰å¾…ä¸­æ–­å›è°ƒå‡½æ•°è®¾ç½®gCheckADCæ ‡å¿—
+    uint16_t timeout = 2000;
     while(gCheckADC == false && timeout > 0)
     {
         timeout--;
     }
 
-    // ÅĞ¶ÏÊÇ·ñ³¬Ê±£ºÈô³¬Ê±£¬Í£Ö¹DMA²¢·µ»ØÎŞĞ§Öµ0
+    // åˆ¤æ–­æ˜¯å¦è¶…æ—¶ï¼Œå¦‚æœè¶…æ—¶åˆ™åœæ­¢DMAï¼Œè¿”å›æœ‰æ•ˆå€¼0
     if(timeout == 0)
     {
         HAL_ADC_Stop_DMA(&hadc1);
-        return 0;  // ³¬Ê±·µ»Ø0£¬±êÊ¶²ÉÑùÊ§°Ü
+        return 0;  // è¶…æ—¶è¿”å›0ï¼Œæ ‡è¯†é‡‡é›†å¤±è´¥
     }
-    
-    // ÖĞ¶ÏÒÑÍê³É£¨²ÉÑù³É¹¦£©£¬Çå¿Õ±êÖ¾È·±£ÏÂ´Î²ÉÑùÕı³££¬·µ»Ø¼ÆËãºÃµÄÆ½¾ùÖµ
-    gCheckADC = false;  // ÖØÖÃ²ÉÑùÍê³É±êÖ¾£¬ÎªÏÂ´Î²É¼¯×ö×¼±¸
-    uint32_t sum = 0; 
-    for (int i = 0; i < number; i++) 
+
+    uint32_t sum = 0;
+    for (int i = 0; i < number; i++)
     {
         sum += dma_buff[i];
     }
     gAdcResult = sum / number;
     return gAdcResult;
+
 }
 
 /**
- * @brief  ²É¼¯8Â·Í¨µÀµÄADCÔ­Ê¼Ä£ÄâÖµ£¬²¢°´·½Ïò´æ´¢µ½Êı×é
- * @param  result - Êä³ö²ÎÊı£¬ÓÃÓÚ´æ´¢8Â·Í¨µÀµÄADCÔ­Ê¼Öµ
- * @note   Í¨¹ı3Î»µØÖ·Ïß£¨Address_0~2£©¿ØÖÆ¶àÂ·Ñ¡ÔñÆ÷£¬ÊµÏÖ8Â·Í¨µÀÇĞ»»£»
- *         Ö§³ÖÕıĞò/ÄæĞò´æ´¢£¬ÓÉÈ«¾Ö±äÁ¿Direction¿ØÖÆ£¨0=ÕıĞò£¬1=ÄæĞò£©
+ * @brief  é‡‡é›†8é€šé“ADCåŸå§‹æ¨¡æ‹Ÿå€¼ï¼ŒæŒ‰åºå­˜å‚¨åˆ°æ•°ç»„
+ * @param  result - ç»“æœæ•°ç»„ï¼Œç”¨äºå­˜å‚¨8é€šé“çš„ADCåŸå§‹å€¼
+ * @note   é€šè¿‡3ä½åœ°å€çº¿ï¼ŒAddress_0~2æ§åˆ¶å¤šè·¯é€‰æ‹©å™¨ï¼Œå®ç°8é€šé“åˆ‡æ¢
+ *         æ”¯æŒæ­£å‘/åå‘å­˜å‚¨ï¼Œå…¨å±€å˜é‡Directionæ§åˆ¶ï¼Œ0=æ­£å‘ï¼Œ1=åå‘
  */
 void Get_Analog_value(unsigned short *result)
 {
     unsigned char i;
-    unsigned int Anolag = 0;  // ÁÙÊ±´æ´¢µ¥Â·ADC²ÉÑù½á¹û
+    unsigned int Anolag = 0;  // ä¸´æ—¶å­˜å‚¨å•è·¯ADCé‡‡æ ·å€¼
 
-    // Ñ­»·8´Î£¬Í¨¹ı3Î»µØÖ·Ïß£¨bit0~bit2£©ÇĞ»»8Â·²É¼¯Í¨µÀ
+    // å¾ªç¯8æ¬¡ï¼Œé€šè¿‡3ä½åœ°å€çº¿ï¼Œbit0~bit2åˆ‡æ¢8è·¯é‡‡é›†é€šé“
     for(i = 0; i < 8; i++)
     {
-        // µØÖ·ÏßµçÆ½¿ØÖÆ£ºÍ¨¹ıiµÄ¶ÔÓ¦bitÎ»·´Ïà£¬ÇĞ»»¶àÂ·Ñ¡ÔñÆ÷µÄµ±Ç°Í¨µÀ
-        Switch_Address_0(!(i & 0x01));  // µØÖ·Ïß0 <-> iµÄbit0£¨¿ØÖÆµÚ1Î»Í¨µÀÑ¡Ôñ£©
-        Switch_Address_1(!(i & 0x02));  // µØÖ·Ïß1 <-> iµÄbit1£¨¿ØÖÆµÚ2Î»Í¨µÀÑ¡Ôñ£©
-        Switch_Address_2(!(i & 0x04));  // µØÖ·Ïß2 <-> iµÄbit2£¨¿ØÖÆµÚ3Î»Í¨µÀÑ¡Ôñ£©
+        // åœ°å€çº¿çš„ç”µå¹³æ§åˆ¶ï¼Œé€šè¿‡içš„å¯¹åº”bitä½å–åï¼Œåˆ‡æ¢å¤šè·¯é€‰æ‹©å™¨çš„å½“å‰é€šé“
+        Switch_Address_0(!(i & 0x01));  // åœ°å€çº¿0 <-> içš„bit0ï¼Œæ§åˆ¶çš„1ä½é€šé“é€‰æ‹©
+        Switch_Address_1(!(i & 0x02));  // åœ°å€çº¿1 <-> içš„bit1ï¼Œæ§åˆ¶çš„2ä½é€šé“é€‰æ‹©
+        Switch_Address_2(!(i & 0x04));  // åœ°å€çº¿2 <-> içš„bit2ï¼Œæ§åˆ¶çš„3ä½é€šé“é€‰æ‹©
 
-        // ¹Ø¼üÑÓÊ±£ºµØÖ·ÇĞ»»ºó£¬ĞèµÈ´ı¶àÂ·Ñ¡ÔñÆ÷ºÍADCÊäÈëĞÅºÅÎÈ¶¨£¨±ÜÃâĞÅºÅ¶¶¶¯µ¼ÖÂ²ÉÑùÎó²î£©
-        delay_us(200);  // msÑÓÊ±È·±£ĞÅºÅÎÈ¶¨
-        Anolag = adc_getValue(90);  // ²É¼¯µ±Ç°Í¨µÀµÄADCÖµ£¨90´Î²ÉÑùÇóÆ½¾ù£¬Ìá¸ß¾«¶È£©
+        // å…³é”®å»¶æ—¶ï¼šåœ°å€åˆ‡æ¢åï¼Œç­‰å¾…å¤šè·¯é€‰æ‹©å™¨ADCè¾“å…¥ä¿¡å·ç¨³å®šï¼ˆé¿å…ä¿¡å·æŠ–åŠ¨é€ æˆé‡‡æ ·è¯¯å·®ï¼‰
+        delay_us(100);  // å»¶æ—¶ç¡®ä¿ä¿¡å·ç¨³å®š
+        Anolag = adc_getValue(90);  // é‡‡é›†å½“å‰é€šé“çš„ADCå€¼ï¼ˆ90æ¬¡é‡‡æ ·æ±‚å¹³å‡å€¼ï¼Œæé«˜ç²¾åº¦ï¼‰
 
-        // ¸ù¾İDirection¿ØÖÆ´æ´¢Ë³Ğò£ºÕıĞò£¨i¡úresult[i]£©»òÄæĞò£¨i¡úresult[7-i]£©
+        // æ ¹æ®Directionæ§åˆ¶å­˜å‚¨é¡ºåºï¼šæ­£å‘i->result[i]ï¼Œåå‘i->result[7-i]
         if(!Direction)
-            result[i] = Anolag;        // Direction=0£ºÕıĞò´æ´¢£¨Í¨µÀ0¡úresult[0]£¬Í¨µÀ1¡úresult[1]...£©
+            result[i] = Anolag;        // Direction=0ï¼Œæ­£å‘å­˜å‚¨ï¼ˆé€šé“0->result[0]ï¼Œé€šé“1->result[1]...ï¼‰
         else
-            result[7 - i] = Anolag;    // Direction=1£ºÄæĞò´æ´¢£¨Í¨µÀ0¡úresult[7]£¬Í¨µÀ1¡úresult[6]...£©
+            result[7 - i] = Anolag;    // Direction=1ï¼Œåå‘å­˜å‚¨ï¼ˆé€šé“0->result[7]ï¼Œé€šé“1->result[6]...ï¼‰
 
-        Anolag = 0;  // Çå¿ÕÁÙÊ±±äÁ¿£¬±ÜÃâ¸ÉÈÅÏÂÒ»Â·²ÉÑù
+        Anolag = 0;  // æ¸…ç©ºä¸´æ—¶å˜é‡ï¼Œä¸ºä¸‹ä¸€è·¯åšå‡†å¤‡
     }
 }
 
-/* º¯Êı¹¦ÄÜ£º½«Ä£ÄâÖµ×ª»»ÎªÊı×ÖĞÅºÅ£¨¶şÖµ»¯´¦Àí£©
-   ²ÎÊıËµÃ÷£º
-   adc_value - Ô­Ê¼ADCÖµÊı×é
-   Gray_white - °×É«ãĞÖµÊı×é
-   Gray_black - ºÚÉ«ãĞÖµÊı×é
-   Digital - Êä³öµÄÊı×ÖĞÅºÅ£¨°´Î»±íÊ¾£© */
+/* åŠŸèƒ½è¯´æ˜ï¼šæ¨¡æ‹Ÿå€¼è½¬æ¢ä¸ºæ•°å­—ä¿¡å·ï¼ˆé˜ˆå€¼æ¯”è¾ƒï¼‰
+   å‚æ•°è¯´æ˜ï¼š
+   adc_value - åŸå§‹ADCå€¼æ•°ç»„
+   Gray_white - ç™½è‰²é˜ˆå€¼æ•°ç»„
+   Gray_black - é»‘è‰²é˜ˆå€¼æ•°ç»„
+   Digital - è¾“å‡ºæ•°å­—ä¿¡å·ï¼ˆ8ä½æ˜¾ç¤ºï¼‰ */
 void convertAnalogToDigital(unsigned short *adc_value,unsigned short *Gray_white,unsigned short *Gray_black,unsigned char *Digital)
 {
     
     for (int i = 0; i < 8; i++) {
         if (adc_value[i] > Gray_white[i]) {
-            *Digital |= (1 << i);   // ³¬¹ı°×ãĞÖµÖÃ1£¨°×É«£©
+            *Digital |= (1 << i);   // å¤§äºç™½è‰²é˜ˆå€¼è¾“å‡º1ï¼ˆç™½è‰²çº¿ï¼‰
         } else if (adc_value[i] < Gray_black[i]) {
-            *Digital &= ~(1 << i);  // µÍÓÚºÚãĞÖµÖÃ0£¨ºÚÉ«£©
+            *Digital &= ~(1 << i);  // å°äºé»‘è‰²é˜ˆå€¼è¾“å‡º0ï¼ˆé»‘è‰²çº¿ï¼‰
         }
-        // ÖĞ¼ä»Ò¶ÈÖµ±£³ÖÔ­ÓĞ×´Ì¬
+        // ä¸­é—´ç°åº¦å€¼ä¿æŒåŸçŠ¶æ€
     }
 }
 
-/* º¯Êı¹¦ÄÜ£º¹éÒ»»¯ADCÖµµ½Ö¸¶¨·¶Î§
-   ²ÎÊıËµÃ÷£º
-   adc_value - Ô­Ê¼ADCÖµÊı×é
-   Normal_factor - ¹éÒ»»¯ÏµÊıÊı×é
-   Calibrated_black - Ğ£×¼ºÚÖµÊı×é
-   result - ´æ´¢¹éÒ»»¯½á¹ûµÄÊı×é
-   bits - ADC×î´óÁ¿³ÌÖµ£¨Èç255/1024µÈ£© */
+/* åŠŸèƒ½è¯´æ˜ï¼šå½’ä¸€åŒ–ADCå€¼åˆ°æŒ‡å®šèŒƒå›´
+   å‚æ•°è¯´æ˜ï¼š
+   adc_value - åŸå§‹ADCå€¼æ•°ç»„
+   Normal_factor - å½’ä¸€åŒ–ç³»æ•°æ•°ç»„
+   Calibrated_black - æ ¡å‡†é»‘è‰²å€¼æ•°ç»„
+   result - å­˜å‚¨å½’ä¸€åŒ–ç»“æœæ•°ç»„
+   bits - ADCåˆ†è¾¨ç‡ï¼ˆå¦‚255/1024ç­‰ï¼‰ */
 void normalizeAnalogValues(unsigned short *adc_value,double *Normal_factor,unsigned short *Calibrated_black,unsigned short *result,double bits)
 {
     for (int i = 0; i < 8; i++) {
         unsigned short n ;
-        // ¼ÆËã¹éÒ»»¯Öµ£¨¼õÈ¥ºÚµçÆ½ºóËõ·Å£©
-        if(adc_value[i]<Calibrated_black[i]) n=0;  // µÍÓÚºÚµçÆ½¹éÁã
+        // è®¡ç®—å½’ä¸€åŒ–å€¼ï¼ˆå‡å»é»‘åŸºå‡†å€¼ï¼Œä¹˜ä»¥ç³»æ•°ï¼‰
+        if(adc_value[i]<Calibrated_black[i]) n=0;  // ä½äºé»‘åŸºå‡†å€¼
         else n = (adc_value[i] - Calibrated_black[i]) * Normal_factor[i];
 
-        // ÏŞ·ù´¦Àí
+        // é™å¹…å¤„ç†
         if (n > bits) {
             n = bits;
         }
@@ -128,45 +127,45 @@ void normalizeAnalogValues(unsigned short *adc_value,double *Normal_factor,unsig
     }
 }
 
-/* º¯Êı¹¦ÄÜ£º´«¸ĞÆ÷½á¹¹Ìå³õÊ¼»¯£¨Ê×´Î³õÊ¼»¯£©
-   ²ÎÊıËµÃ÷£ºsensor - ´«¸ĞÆ÷½á¹¹ÌåÖ¸Õë */
+/* åŠŸèƒ½è¯´æ˜ï¼šç°åº¦ä¼ æ„Ÿå™¨ç»“æ„ä½“åˆå§‹åŒ–ï¼ˆé¦–æ¬¡åˆå§‹åŒ–ï¼‰
+   å‚æ•°è¯´æ˜ï¼šsensor - ä¼ æ„Ÿå™¨ç»“æ„ä½“æŒ‡é’ˆ */
 void No_MCU_Ganv_Sensor_Init_Frist(No_MCU_Sensor*sensor)
 {
-    // ÇåÁãËùÓĞĞ£×¼Êı¾İºÍ×´Ì¬
+    // æ¸…é™¤ä¼ æ„Ÿå™¨æ ¡å‡†æ•°æ®å’ŒçŠ¶æ€
     memset(sensor->Calibrated_black,0,16);
     memset(sensor->Calibrated_white,0,16);
     memset(sensor->Normal_value,0,16);
     memset(sensor->Analog_value,0,16);
-    
-    // ³õÊ¼»¯¹éÒ»»¯ÏµÊı
+
+    // åˆå§‹åŒ–å½’ä¸€åŒ–ç³»æ•°
     for(int i = 0; i < 8; i++)
     {
         sensor->Normal_factor[i]=0.0;
     }
-    
-    // ³õÊ¼»¯×´Ì¬±äÁ¿
+
+    // åˆå§‹åŒ–çŠ¶æ€å˜é‡
     sensor->Digtal=0;
     sensor->Time_out=0;
     sensor->Tick=0;
-    sensor->ok=0;  // ±ê¼ÇÎ´Íê³ÉĞ£×¼
+    sensor->ok=0;  // æ ‡è®°æœªå®Œæˆæ ¡å‡†
 }
 
-/* º¯Êı¹¦ÄÜ£º´«¸ĞÆ÷ÍêÕû³õÊ¼»¯£¨´øĞ£×¼²ÎÊı£©
-   ²ÎÊıËµÃ÷£º
-   sensor - ´«¸ĞÆ÷½á¹¹ÌåÖ¸Õë
-   Calibrated_white - Ğ£×¼°×ÖµÊı×é
-   Calibrated_black - Ğ£×¼ºÚÖµÊı×é */
+/* åŠŸèƒ½è¯´æ˜ï¼šç°åº¦ä¼ æ„Ÿå™¨åˆå§‹åŒ–ï¼ˆå¸¦æ ¡å‡†å‚æ•°ï¼‰
+   å‚æ•°è¯´æ˜ï¼š
+   sensor - ä¼ æ„Ÿå™¨ç»“æ„ä½“æŒ‡é’ˆ
+   Calibrated_white - æ ¡å‡†ç™½è‰²å€¼æ•°ç»„
+   Calibrated_black - æ ¡å‡†é»‘è‰²å€¼æ•°ç»„ */
 void No_MCU_Ganv_Sensor_Init(No_MCU_Sensor*sensor,unsigned short *Calibrated_white,unsigned short *Calibrated_black)
 {
     No_MCU_Ganv_Sensor_Init_Frist(sensor);
     
-    // ¸ù¾İÅäÖÃÉèÖÃADCÁ¿³Ì
+    // è®¾ç½®ä¼ æ„Ÿå™¨ADCä½æ•°
     if(Sensor_ADCbits==_8Bits)sensor->bits=255.0;
     else if(Sensor_ADCbits==_10Bits)sensor->bits=1024.0;
     else if(Sensor_ADCbits==_12Bits)sensor->bits=4096.0;
     else if(Sensor_ADCbits==_14Bits)sensor->bits=16384.0;
 
-    // ÉèÖÃ²ÉÑù³¬Ê±Ê±¼ä
+    // è®¾ç½®ä¼ æ„Ÿå™¨è¶…æ—¶æ—¶é—´
     if(Sensor_Edition==Class)sensor->Time_out=1;
     else sensor->Time_out=10;
 
@@ -175,7 +174,7 @@ void No_MCU_Ganv_Sensor_Init(No_MCU_Sensor*sensor,unsigned short *Calibrated_whi
     
     for (int i = 0; i < 8; i++)
     {
-        // È·±£°×Öµ > ºÚÖµ£¨±ØÒªÊ±½»»»£©
+        // ç¡®ä¿ç™½å€¼ > é»‘å€¼ï¼ˆé‡è¦ï¼šéœ€è¦æ—¶äº¤æ¢ï¼‰
         if(Calibrated_black[i]>=Calibrated_white[i])
         {
             temp=Calibrated_white[i];
@@ -183,79 +182,79 @@ void No_MCU_Ganv_Sensor_Init(No_MCU_Sensor*sensor,unsigned short *Calibrated_whi
             Calibrated_black[i]=temp;
         }
 
-        // ¼ÆËã»Ò¶ÈãĞÖµ£¨1:2ºÍ2:1·Ö½çµã£©
+        // è®¡ç®—ç°åº¦é˜ˆå€¼ï¼ˆ1:2å’Œ2:1åˆ†å‰²ç‚¹ï¼‰
         sensor->Gray_white[i]=(Calibrated_white[i]*2+Calibrated_black[i])/3;
         sensor->Gray_black[i]=(Calibrated_white[i]+Calibrated_black[i]*2)/3;
 
-        // ±£´æĞ£×¼Êı¾İ
+        // ä¿å­˜æ ¡å‡†å‚æ•°
         sensor->Calibrated_black[i]=Calibrated_black[i];
         sensor->Calibrated_white[i]=Calibrated_white[i];
 
-        // ´¦ÀíÎŞĞ§Ğ£×¼Êı¾İ£¨È«ºÚ/È«°×/ÏàµÈÇé¿ö£©
+        // æ£€æŸ¥æ— æ•ˆæ ¡å‡†æ•°æ®ï¼ˆå…¨ç™½/å…¨é»‘/ç›¸åŒå€¼ï¼‰
         if ((Calibrated_white[i] == 0 && Calibrated_black[i] == 0)||
             (Calibrated_white[i]==Calibrated_black[i]))
         {
-            sensor->Normal_factor[i] = 0.0;  // ÎŞĞ§Í¨µÀ
+            sensor->Normal_factor[i] = 0.0;  // æ— æ•ˆé€šé“
             continue;
         }
-        
-        // ¼ÆËã¹éÒ»»¯ÏµÊı
+
+        // è®¡ç®—å½’ä¸€åŒ–ç³»æ•°
         Normal_Diff[i] = (double)Calibrated_white[i] - (double)Calibrated_black[i];
         sensor->Normal_factor[i] = sensor->bits / Normal_Diff[i];
     }
-    sensor->ok=1;  // ±ê¼Ç³õÊ¼»¯Íê³É
+    sensor->ok=1;  // æ ‡è®°åˆå§‹åŒ–å®Œæˆ
 }
 
-/* º¯Êı¹¦ÄÜ£º´«¸ĞÆ÷Ö÷ÈÎÎñ£¨ÎŞ¶¨Ê±Æ÷°æ±¾£©*/
+/* åŠŸèƒ½è¯´æ˜ï¼šç°åº¦ä¼ æ„Ÿå™¨ä»»åŠ¡ï¼ˆæ— å®šæ—¶å™¨ç‰ˆæœ¬ï¼‰*/
 void No_Mcu_Ganv_Sensor_Task_Without_tick(No_MCU_Sensor*sensor)
 {
-    Get_Analog_value(sensor->Analog_value);  // ²É¼¯Êı¾İ
-    convertAnalogToDigital(sensor->Analog_value, sensor->Gray_white,sensor->Gray_black,&sensor->Digtal);// ¶şÖµ»¯´¦Àí
-    normalizeAnalogValues(sensor->Analog_value,  sensor->Normal_factor,sensor->Calibrated_black,sensor->Normal_value,sensor->bits);// ¹éÒ»»¯´¦Àí
+    Get_Analog_value(sensor->Analog_value);  // é‡‡é›†æ•°æ®
+    convertAnalogToDigital(sensor->Analog_value, sensor->Gray_white,sensor->Gray_black,&sensor->Digtal);// é˜ˆå€¼æ¯”è¾ƒ
+    normalizeAnalogValues(sensor->Analog_value,  sensor->Normal_factor,sensor->Calibrated_black,sensor->Normal_value,sensor->bits);// å½’ä¸€åŒ–å¤„ç†
 }
 
-/* º¯Êı¹¦ÄÜ£º´«¸ĞÆ÷Ö÷ÈÎÎñ£¨´ø¶¨Ê±Æ÷°æ±¾£©*/
+/* åŠŸèƒ½è¯´æ˜ï¼šç°åº¦ä¼ æ„Ÿå™¨ä»»åŠ¡ï¼ˆå¸¦å®šæ—¶å™¨ç‰ˆæœ¬ï¼‰*/
 void No_Mcu_Ganv_Sensor_Task_With_tick(No_MCU_Sensor*sensor)
 {
-    if(sensor->Tick>=sensor->Time_out)  // ¼ì²éÊÇ·ñµ½´ï²ÉÑùÖÜÆÚ
+    if(sensor->Tick>=sensor->Time_out)  // æ£€æŸ¥æ˜¯å¦è¾¾åˆ°é‡‡æ ·å‘¨æœŸ
     {
-        // Ö´ĞĞÊı¾İ²É¼¯ºÍ´¦Àí
+        // æ‰§è¡Œæ•°æ®é‡‡é›†å’Œå¤„ç†
         Get_Analog_value(sensor->Analog_value);
         convertAnalogToDigital(sensor->Analog_value,sensor->Gray_white,sensor->Gray_black,&sensor->Digtal);
-        normalizeAnalogValues(sensor->Analog_value,sensor->Normal_factor,sensor->Calibrated_black,sensor->Normal_value,sensor->bits);  
-        sensor->Tick=0;  // ÖØÖÃ¶¨Ê±Æ÷
+        normalizeAnalogValues(sensor->Analog_value,sensor->Normal_factor,sensor->Calibrated_black,sensor->Normal_value,sensor->bits);
+        sensor->Tick=0;  // é‡ç½®å®šæ—¶å™¨
     }
 }
 
-/* º¯Êı¹¦ÄÜ£º¶¨Ê±Æ÷tickµİÔö */
+/* åŠŸèƒ½è¯´æ˜ï¼šå®šæ—¶å™¨tickè®¡æ•° */
 void Task_tick(No_MCU_Sensor*sensor)
 {
     sensor->Tick++;
 }
 
-/* º¯Êı¹¦ÄÜ£º»ñÈ¡Êı×ÖĞÅºÅ×´Ì¬ */
+/* åŠŸèƒ½è¯´æ˜ï¼šè·å–æ•°å­—ä¿¡å·çŠ¶æ€ */
 unsigned char Get_Digtal_For_User(No_MCU_Sensor*sensor)
 {
-    return sensor->Digtal;  // ·µ»Ø8Î»Êı×Ö×´Ì¬£¨Ã¿Î»¶ÔÓ¦Ò»¸ö´«¸ĞÆ÷£©
+    return sensor->Digtal;  // è¿”å›8ä½æ•°æ®çŠ¶æ€ï¼Œæ¯ä½å¯¹åº”ä¸€ä¸ªä¼ æ„Ÿå™¨
 }
 
-/* º¯Êı¹¦ÄÜ£º»ñÈ¡¹éÒ»»¯ºóµÄÊı¾İ
-   ·µ»ØÖµ£º1-³É¹¦ 0-Î´³õÊ¼»¯ */
+/* åŠŸèƒ½è¯´æ˜ï¼šè·å–å½’ä¸€åŒ–æ•°æ®
+   è¿”å›å€¼ï¼š1-æˆåŠŸï¼Œ0-æœªåˆå§‹åŒ– */
 unsigned char Get_Normalize_For_User(No_MCU_Sensor*sensor,unsigned short* result)
 {
     if(!sensor->ok)return 0;
-    else 
+    else
     {
-        memcpy(result,sensor->Normal_value,16);  // ¿½±´¹éÒ»»¯Êı¾İ
-        return 1;     
+        memcpy(result,sensor->Normal_value,16);  // æ‹·è´å½’ä¸€åŒ–æ•°æ®
+        return 1;
     }
 }
 
-/* º¯Êı¹¦ÄÜ£º»ñÈ¡Ô­Ê¼Ğ£×¼Êı¾İ
-   ·µ»ØÖµ£º1-³É¹¦ 0-Î´³õÊ¼»¯ */
+/* åŠŸèƒ½è¯´æ˜ï¼šè·å–åŸå§‹æ¨¡æ‹Ÿæ•°æ®
+   è¿”å›å€¼ï¼š1-æˆåŠŸï¼Œ0-æœªåˆå§‹åŒ– */
 unsigned char Get_Anolog_Value(No_MCU_Sensor*sensor,unsigned short *result)
-{   
-    Get_Analog_value(sensor->Analog_value);  // ÖØĞÂ²É¼¯Êı¾İ
+{
+    Get_Analog_value(sensor->Analog_value);  // é‡æ–°é‡‡é›†æ•°æ®
     memcpy(result,sensor->Analog_value,16);
     if(!sensor->ok)return 0;
     else return 1;
