@@ -46,15 +46,17 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-unsigned short white[8] = {2397,2519,2452,2786,2417,3071,2829,3043}; //白色参考值
-unsigned short black[8] = {143,146,150,157,164,171,171,164};    // 黑色参考值
+unsigned short white[8] = {2397,2519,2452,2786,2417,3071,2829,3043}; //白色基准值
+unsigned short black[8] = {143,146,150,157,164,171,171,164};    // 黑色基准值
+unsigned short Normal[8]={0};
 No_MCU_Sensor sensor;               // 初始化传感器结构体
+int32_t offset=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+int32_t CalculateNormalizedValue(unsigned short normal[8],uint8_t field);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -141,15 +143,18 @@ int main(void)
     //HAL_Delay(500);
     #else
     //
-    uint8_t Digtal=0;
+//    uint8_t Digtal=0;
     No_Mcu_Ganv_Sensor_Task_Without_tick(&sensor);
-    Digtal = ~Get_Digtal_For_User(&sensor);
-    Uart_Printf(&huart1, "Digital: %d-%d-%d-%d-%d-%d-%d-%d\r\n",
-                (Digtal>>0)&0x01, (Digtal>>1)&0x01,
-                (Digtal>>2)&0x01, (Digtal>>3)&0x01,
-                (Digtal>>4)&0x01, (Digtal>>5)&0x01,
-                (Digtal>>6)&0x01, (Digtal>>7)&0x01);
+//    Digtal = ~Get_Digtal_For_User(&sensor);
+//    Uart_Printf(&huart1, "Digital: %d-%d-%d-%d-%d-%d-%d-%d\r\n",
+//                (Digtal>>0)&0x01, (Digtal>>1)&0x01,
+//                (Digtal>>2)&0x01, (Digtal>>3)&0x01,
+//                (Digtal>>4)&0x01, (Digtal>>5)&0x01,
+//                (Digtal>>6)&0x01, (Digtal>>7)&0x01);
   #endif
+    Get_Normalize_For_User(&sensor, Normal);
+    offset=CalculateNormalizedValue(Normal,1);
+    Uart_Printf(&huart1,"%d\r\n",offset);
   }
   /* USER CODE END 3 */
 }
@@ -200,7 +205,36 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+int32_t CalculateNormalizedValue(unsigned short normal[8],uint8_t field)
+{
+    // 定义权值数组，从左到右对应-7,-5,-3,-1,1,3,5,7
+    const short weights[8] = {-7, -5, -3, -1, 1, 3, 5, 7};
+    
+    float weighted_sum = 0.0f;          // 加权和
+    float original_sum = 0.0f; // 原始数据和
+    static float last_value = 0.0f;   // 上一次的值
+    static float filter_value = 0.0f;  // 滤波后的值
+    const float filter_alpha = 0.3f;   // 滤波系数 (0.1-0.5，越小越平滑)
+    
+    // 计算加权和和原始数据和
+    for (int i = 0; i < 8; i++) {
+        float value = field ? (4096.0f - normal[i]) : normal[i];
+        weighted_sum += value * weights[i];  // 每个数据乘以对应权值
+        original_sum += value;               // 累加原始数据
+    }
+    
+    // 计算并返回归一化值
+    if (original_sum != 0.0f) { // 避免除以0的情况
+        last_value = weighted_sum / original_sum;
 
+        // 一阶低通滤波，减少数据波动
+        filter_value = filter_alpha * last_value + (1.0f - filter_alpha) * filter_value;
+
+        return (int32_t)(filter_value * 1000); // 放大1000倍返回，保持精度
+    } else {
+        return (int32_t)(filter_value * 1000); // 如果原始数据和为0，返回滤波后的值
+    }
+}
 /* USER CODE END 4 */
 
 /**
