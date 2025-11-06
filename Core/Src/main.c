@@ -207,33 +207,33 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 int32_t CalculateNormalizedValue(unsigned short normal[8],uint8_t field)
 {
-    // 定义权值数组，从左到右对应-7,-5,-3,-1,1,3,5,7
-    const short weights[8] = {-7, -5, -3, -1, 1, 3, 5, 7};
-    
-    float weighted_sum = 0.0f;          // 加权和
-    float original_sum = 0.0f; // 原始数据和
-    static float last_value = 0.0f;   // 上一次的值
-    static float filter_value = 0.0f;  // 滤波后的值
-    const float filter_alpha = 0.3f;   // 滤波系数 (0.1-0.5，越小越平滑)
-    
-    // 计算加权和和原始数据和
-    for (int i = 0; i < 8; i++) {
-        float value = field ? (4096.0f - normal[i]) : normal[i];
-        weighted_sum += value * weights[i];  // 每个数据乘以对应权值
-        original_sum += value;               // 累加原始数据
-    }
-    
-    // 计算并返回归一化值
-    if (original_sum != 0.0f) { // 避免除以0的情况
-        last_value = weighted_sum / original_sum;
+//    // 定义权值数组，从左到右对应-7,-5,-3,-1,1,3,5,7
+//    const short weights[8] = {-7, -5, -3, -1, 1, 3, 5, 7};
+//    
+//    float weighted_sum = 0.0f;          // 加权和
+//    float original_sum = 0.0f; // 原始数据和
+//    static float last_value = 0.0f;   // 上一次的值
+//    static float filter_value = 0.0f;  // 滤波后的值
+//    const float filter_alpha = 0.3f;   // 滤波系数 (0.1-0.5，越小越平滑)
+//    
+//    // 计算加权和和原始数据和
+//    for (int i = 0; i < 8; i++) {
+//        float value = field ? (4096.0f - normal[i]) : normal[i];
+//        weighted_sum += value * weights[i];  // 每个数据乘以对应权值
+//        original_sum += value;               // 累加原始数据
+//    }
+//    
+//    // 计算并返回归一化值
+//    if (original_sum != 0.0f) { // 避免除以0的情况
+//        last_value = weighted_sum / original_sum;
 
-        // 一阶低通滤波，减少数据波动
-        filter_value = filter_alpha * last_value + (1.0f - filter_alpha) * filter_value;
+//        // 一阶低通滤波，减少数据波动
+//        filter_value = filter_alpha * last_value + (1.0f - filter_alpha) * filter_value;
 
-        return (int32_t)(filter_value * 1000); // 放大1000倍返回，保持精度
-    } else {
-        return (int32_t)(filter_value * 1000); // 如果原始数据和为0，返回滤波后的值
-    }
+//        return (int32_t)(filter_value * 1000); // 放大1000倍返回，保持精度
+//    } else {
+//        return (int32_t)(filter_value * 1000); // 如果原始数据和为0，返回滤波后的值
+//    }
 }
 /* USER CODE END 4 */
 
