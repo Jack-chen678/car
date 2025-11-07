@@ -1,177 +1,239 @@
 #include "pid_app.h"
-#define base_speed 50
-float left_base_speed=0;
-float right_base_speed=0;
 
-float left_current;
-float right_current;
+PID_TypeDef SpeedPID_Right;
+PID_TypeDef SpeedPID_Left;
+PID_TypeDef AnglePID;
+PID_TypeDef TrackPID;
 
-extern Encoder left_encoder;
-extern Encoder right_encoder;
-
-extern MOTOR left_motor;
-extern MOTOR right_motor;
-
-extern float g_line_position_error; // 循迹误差值（循迹环当前值）
-int pid_angle_output=0;
-bool track_enable=0;
-
-// 低通滤波器系数 (Low-pass filter coefficient 'alpha')
-// alpha 越小, 滤波效果越强, 但延迟越大。建议从 0.1 到 0.5 之间开始尝试。
-#define SPEED_FILTER_ALPHA_LEFT  0.4f 
-#define SPEED_FILTER_ALPHA_RIGHT 0.4f 
-
-/* PID 控制器实例 */
-PID_T pid_speed_left;  // 左轮速度环
-PID_T pid_speed_right; // 右轮速度环
-PID_T pid_line;        // 循迹环
-PID_T pid_dis;        // 距离环
-
-float pid_line_output=0;
-/* PID 参数定义 */
-PidParams_t pid_params_left = {
-    .kp = 500.5f,        
-    .ki = 20.500f,      
-    .kd = 0.00f,      
-    .out_min = -16700.0f,
-    .out_max = 16700.0f,
-};
-
-PidParams_t pid_params_right = {
-    .kp = 1000.0f,        
-    .ki = 15.500f,      
-    .kd = 0.00f,      
-    .out_min = -16700.0f,
-    .out_max = 16700.0f,
-};
-
-PidParams_t pid_params_line = {
-    .kp = 6.50f,        
-    .ki = 0.001f,      
-    .kd = 12.60f,      
-    .out_min = -100.0f,
-    .out_max = 100.0f,
-};
+void PID_Reset(PID_TypeDef *pid) {
+	pid->target_val = 0;
+    pid->error = 0.0f;
+    pid->prevError = 0.0f;
+    pid->integral = 0.0f;
+    pid->derivative = 0.0f;
+    pid->output = 0.0f;
+} 
 
 
-PidParams_t pid_params_dis= {
-    .kp = 1.00f,        
-    .ki = 0.00f,      
-    .kd = 0.5f,      
-    .out_min = -5.0f,
-    .out_max = 5.0f,
-};
-void PID_Init(void)
-{
-  pid_init(&pid_speed_left,
-           pid_params_left.kp, pid_params_left.ki, pid_params_left.kd,
-           0.0f, pid_params_left.out_max);
-  
-  pid_init(&pid_speed_right,
-           pid_params_right.kp, pid_params_right.ki, pid_params_right.kd,
-           0.0f, pid_params_right.out_max);
-  
-  pid_init(&pid_dis,
-           pid_params_dis.kp, pid_params_dis.ki, pid_params_dis.kd,
-           0.0f, pid_params_dis.out_max);
-  
-  pid_init(&pid_line,
-           pid_params_line.kp, pid_params_line.ki, pid_params_line.kd,
-           0.0f, pid_params_line.out_max);
-//  
-  pid_init(&pid_speed_right,
-           pid_params_right.kp, pid_params_right.ki, pid_params_right.kd,
-           0.0f, pid_params_right.out_max);
-    
-  pid_set_target(&pid_speed_left, right_base_speed);
-  pid_set_target(&pid_speed_right, left_base_speed);
-  pid_set_target(&pid_line, 0);
-  pid_set_target(&pid_dis,20);
+void PID_Init(void) {
+    // 速度环PID初始化
+    SpeedPID_Right.Kp =	40.0f;
+    SpeedPID_Right.Ki =	4.5f;
+    SpeedPID_Right.Kd =	5.0f;
+    SpeedPID_Right.integralLimit = 400.0f;
+    SpeedPID_Right.outputLimit = 1000.0f;
+	SpeedPID_Right.Deadzone = 2;
+    PID_Reset(&SpeedPID_Right);
+	
+	SpeedPID_Left.Kp = 40.0f;
+    SpeedPID_Left.Ki = 4.5f;
+    SpeedPID_Left.Kd = 5.0f;
+    SpeedPID_Left.integralLimit = 400.0f;
+    SpeedPID_Left.outputLimit = 1000.0f;
+	SpeedPID_Left.Deadzone = 2;
+    PID_Reset(&SpeedPID_Left);
+
+    // 角度环PID初始化
+//    AnglePID.Kp = 2.0f;
+//    AnglePID.Ki = 0.0f;
+//    AnglePID.Kd = 1.2f;
+//    AnglePID.integralLimit = 0.0f;
+//    AnglePID.outputLimit = 100.0f;
+//	AnglePID.Deadzone = 0;
+//    PID_Reset(&AnglePID);
+//	
+//	// 循迹PID初始化
+//    TrackPID.Kp = 0.75f;
+//    TrackPID.Ki = 0.0f;
+//    TrackPID.Kd = 0.7f;
+//    TrackPID.integralLimit = 0.0f;
+//    TrackPID.outputLimit = 100.0f;
+//	TrackPID.Deadzone = 2;
+//    PID_Reset(&TrackPID);
 }
 
-bool pid_running = false; // PID 控制使能开关
-
-int output_left = 0, output_right = 0;
-int line_output = 0;
-
-//循迹环PID控制
-void pid_line_control(void)
+float PID_Calculate(PID_TypeDef *pid,int32_t actual_val) 
 {
-//    pid_line_output=0;
-    pid_line_output=pid_calculate_positional(&pid_line, g_line_position_error);
+    
+    // 计算误差
+    pid->error = pid->target_val - actual_val;
+	
+	// 计算微分项,误差变化率
+    pid->derivative = pid->error - pid->prevError;
+    pid->prevError = pid->error;
+	
+	// 临时积分项（先不更新到结构体）
+	float temp_integral = pid->integral + pid->error; 
+    
+    // 积分限幅
+	if (temp_integral > pid->integralLimit) {
+		temp_integral = pid->integralLimit;
+	} else if (temp_integral < -pid->integralLimit) {
+		temp_integral = -pid->integralLimit;
+	}
 
-    //输出限幅
-    pid_line_output = pid_constrain(pid_line_output,pid_params_line.out_min,pid_params_line.out_max);
-//    
-    pid_line.integral=0;
-    pid_line.integral=0;
-
-}
-
-//距离环PID控制
-void pid_dis_control(void)
-{
-    float pid_dis_output=0;
-    pid_dis_output=pid_calculate_positional(&pid_dis, ultrasonic.last_distance);
-    
-    pid_dis_output = pid_constrain(pid_dis_output,pid_params_dis.out_min,pid_params_dis.out_max);
-    left_base_speed=base_speed-pid_dis_output;
-    right_base_speed=base_speed-pid_dis_output;
-}
-
-/**********************************滤波************************************************/
-float left_speed_filtered(void)
-{
-    // 用于存储滤波后速度的变量
-    static float filtered_speed_left = 0.0f;
-    filtered_speed_left = SPEED_FILTER_ALPHA_LEFT * left_encoder.speed_cm_s + (1.0f - SPEED_FILTER_ALPHA_LEFT) * filtered_speed_left;
-    return filtered_speed_left;
-}
-
-float right_speed_filtered(void)
-{
-    // 用于存储滤波后速度的变量
-    static float filtered_speed_right = 0.0f;
-    filtered_speed_right = SPEED_FILTER_ALPHA_RIGHT * right_encoder.speed_cm_s + (1.0f - SPEED_FILTER_ALPHA_RIGHT) * filtered_speed_right;
-    return filtered_speed_right;
-}
-/******************************************************************************************/
-
-void PID_Task(void)
-{
-    if(pid_running == false) 
-    {
-        return;
-    }
-    
-    if(track_enable)
-    {
-        pid_dis_control();
-    }
-    
-    pid_line_control();
-    
-    pid_speed_left.target=left_base_speed-pid_line_output;
-    pid_speed_right.target=left_base_speed+pid_line_output;
-    
-    left_current =left_speed_filtered();
-    right_current = right_speed_filtered();
-    
-    output_left = pid_calculate_positional(&pid_speed_left,left_current);
-    output_right = pid_calculate_positional(&pid_speed_right,right_current);
-    
+	if(pid->error<-pid->Deadzone||pid->error>pid->Deadzone){
+		// 计算PID输出
+		pid->output = pid->Kp * pid->error + 
+					  pid->Ki * temp_integral + 
+					  pid->Kd * pid->derivative;
+	}else pid->output = pid->Ki * temp_integral;
+	
+	
     // 输出限幅
-    output_left = pid_constrain(output_left, pid_params_left.out_min, pid_params_left.out_max);
-    output_right = pid_constrain(output_right, pid_params_right.out_min, pid_params_right.out_max);
-    
-    // 设置电机速度
-    Motor_Set_Speed(&left_motor, output_left);
-    Motor_Set_Speed(&right_motor, output_right);
-    
-    //Uart_Printf(&huart3, "Left:%.2fcm/s  Right:%.2fcm/s\r\n", left_encoder.speed_cm_s, right_encoder.speed_cm_s);
-    //Uart_Printf(&huart3, "output_left:%d  output_right:%d\r\n",output_left,output_right);
-    //Uart_Printf(&huart3,"%f,%f\r\n",right_encoder.speed_cm_s,pid_speed_right.target);
-    //Uart_Printf(&huart3,"%f\r\n", output_left);
+    if (pid->output > pid->outputLimit) 
+    {
+		return pid->outputLimit;
+    } else if (pid->output < -pid->outputLimit) 
+    {
+		return -pid->outputLimit;
+    }
+	// 仅当输出未被限幅时，更新积分项
+	pid->integral = temp_integral;
+    return pid->output;
 }
 
 
+//float PositionPID_Calculate(PID_TypeDef *pid,int32_t actual_val) {
+//// 计算误差
+//pid->error = pid->target_val - actual_val;
+
+//// 计算微分项,误差变化率
+//pid->derivative = pid->error - pid->prevError;
+//pid->prevError = pid->error;
+
+//// 临时积分项（先不更新到结构体）
+//float temp_integral = pid->integral + pid->error; 
+
+//// 积分限幅
+//if (temp_integral > pid->integralLimit) {
+//	temp_integral = pid->integralLimit;
+//} else if (temp_integral < -pid->integralLimit) {
+//	temp_integral = -pid->integralLimit;
+//}
+
+//if(pid->error<-pid->Deadzone||pid->error>pid->Deadzone){
+//	// 计算PID输出
+//	pid->output = pid->Kp * pid->error + 
+//				  pid->Ki * temp_integral + 
+//				  pid->Kd * pid->derivative;
+//}else pid->output = pid->Ki * temp_integral;
+
+
+//// 输出限幅
+//if (pid->output > pid->outputLimit) {
+//	return pid->outputLimit;
+//} else if (pid->output < -pid->outputLimit) {
+//	return -pid->outputLimit;
+//}
+//// 仅当输出未被限幅时，更新积分项
+//pid->integral = temp_integral;
+//return pid->output;
+//}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//float velocity_planner(float current_pos, float target_pos, 
+//				   float current_speed, float max_speed, 
+//				   float max_accel, float max_decel) {
+//// 计算到目标的剩余距离和方向
+//float distance = fabs(target_pos - current_pos);
+//float direction = (target_pos > current_pos) ? 1.0f : -1.0f;
+
+//// 计算安全减速所需的最大速度
+//float safe_decel_speed = sqrtf(2.0f * max_decel * distance);
+
+//// 计算考虑启动加速度的最大允许速度
+//// 启动阶段：v = sqrt(2ad)，确保从0加速到v的距离不超过当前已行驶距离
+//float distance_traveled = fabs(target_pos) - distance;  // 已行驶距离
+//float safe_accel_speed = sqrtf(2.0f * max_accel * fmaxf(distance_traveled, 0.0f));
+
+//// 综合考虑：取三者最小值（当前速度+加速度限制、减速限制、最大速度）
+//float max_allowed_speed = fminf(
+//	fminf(fabs(current_speed) + max_accel * 0.1f, safe_accel_speed),  // 启动加速度限制
+//	fminf(safe_decel_speed, max_speed)                                   // 减速限制和最大速度
+//);
+
+//// 带上方向信息
+//return max_allowed_speed * direction;
+//}
+//				   
+
+
+//PositionPID Positionpid;
+//// PID初始化
+//void PositionPID_Init(PositionPID *pid, float kp, float ki, float kd, 
+//		 float integral_limit, float output_limit,
+//		 float max_accel, float max_decel) {
+//pid->Kp = kp;
+//pid->Ki = ki;
+//pid->Kd = kd;
+//pid->integral_limit = integral_limit;
+//pid->output_limit = output_limit;
+//pid->error = 0.0f;
+//pid->prev_error = 0.0f;
+//pid->integral = 0.0f;
+//pid->output = 0.0f;
+//pid->current_speed = 0.0f;
+//pid->max_accel = max_accel;
+//pid->max_decel = max_decel;
+//}
+
+//// PID计算（带完整速度规划）
+//float PID_Compute(PositionPID *pid, float current_pos) {
+//// 计算误差
+//pid->error = pid->target_pos - current_pos;
+
+//// 速度规划：结合启动加速度和减速限制
+//float max_allowed_speed = velocity_planner(
+//	current_pos, pid->target_pos, 
+//	pid->current_speed, pid->output_limit,
+//	pid->max_accel, pid->max_decel
+//);
+
+//// 计算PID各项
+//float derivative = (pid->error - pid->prev_error) ;
+//pid->integral += pid->error ;
+
+//// 积分限幅
+//if (pid->integral > pid->integral_limit) {
+//	pid->integral = pid->integral_limit;
+//} else if (pid->integral < -pid->integral_limit) {
+//	pid->integral = -pid->integral_limit;
+//}
+
+//// 计算基础PID输出
+//float base_output = pid->Kp * pid->error + 
+//					pid->Ki * pid->integral + 
+//					pid->Kd * derivative;
+
+//// 速度限幅（结合规划的最大允许速度）
+//float output = base_output;
+//if (output > max_allowed_speed) {
+//	output = max_allowed_speed;
+//} else if (output < -max_allowed_speed) {
+//	output = -max_allowed_speed;
+//}
+
+//// 保存本次误差用于下次计算
+//pid->prev_error = pid->error;
+
+//// 更新当前速度估计
+//pid->current_speed = output;
+
+//return output;
+//}
