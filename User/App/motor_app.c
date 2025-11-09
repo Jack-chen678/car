@@ -43,7 +43,7 @@ void Motor_Init(void)
 
 /**
  * @brief  设置电机PWM
- * @param  pwm_value: PWM值 (-80 ~ +80)，正值正转，负值反转
+ * @param  pwm_value: PWM值 (-100 ~ +100)，正值正转，负值反转
  * @param  channel_in1: IN1控制通道 (如TIM_CHANNEL_1)
  * @param  channel_in2: IN2控制通道 (如TIM_CHANNEL_2)
  * @note   正转: IN1=0, IN2=PWM
@@ -70,7 +70,7 @@ void SetMotorPwm(int16_t pwm_value, uint32_t channel_in1, uint32_t channel_in2)
 
 /**
  * @brief  设置左电机PWM
- * @param  pwm_value: PWM值 (-80 ~ +80)，正值正转，负值反转
+ * @param  pwm_value: PWM值 (-100 ~ +100)，正值正转，负值反转
  */
 void SetLeftMotorPwm(int16_t pwm_value)
 {
@@ -79,7 +79,7 @@ void SetLeftMotorPwm(int16_t pwm_value)
 
 /**
  * @brief  设置右电机PWM
- * @param  pwm_value: PWM值 (-80 ~ +80)，正值正转，负值反转
+ * @param  pwm_value: PWM值 (-100 ~ +100)，正值正转，负值反转
  */
 void SetRightMotorPwm(int16_t pwm_value)
 {

@@ -3,7 +3,7 @@
 
 #include "MyDefine.h"
 
-#define MOTOR_PWM_MAX           80      /* TIM2 ARR值，对应100%占空比 */
+#define MOTOR_PWM_MAX           100      /* TIM2 ARR值，对应100%占空比 */
 #define MOTOR_ENCODER_PPR       11      /* 编码器线数(脉冲/转) */
 #define MOTOR_ENCODER_RATIO     30      /* 减速比 */
 #define MOTOR_TASK_PERIOD_MS    10      /* 速度计算周期(ms) */

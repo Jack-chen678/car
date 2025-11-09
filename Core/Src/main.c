@@ -114,6 +114,12 @@ int main(void)
     /* USER CODE BEGIN 3 */
     SetRightMotorPwm(10);  /* 右电机前进 */
     SetLeftMotorPwm(10);   /* 左电机前进 */
+    /*
+      改进前 - 参数难以理解：
+      ：提升电机控制代码可读性
+  SetMotorPwm(10, TIM_CHANNEL_3, TIM_CHANNEL_4);  // 谁是左？谁是右？
+  SetMotorPwm(10, TIM_CHANNEL_1, TIM_CHANNEL_2);
+      */
   }
   /* USER CODE END 3 */
 }

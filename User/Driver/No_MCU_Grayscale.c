@@ -14,11 +14,13 @@ static void delay_us(uint32_t us)
 volatile bool gCheckADC=false;
 /**
  * @brief  获取ADC采样值（DMA+中断方式），计算平均值
- * @param  number - 采样数量（此处实际使用90次，与DMA缓冲区匹配）
+ * @param  number - 采样数量（最多90次）
  * @return 采样平均值（超时返回0，表示采样失败）
  */
 unsigned int adc_getValue(unsigned int number)
 {
+    if(number>=90)  number=90;
+    
     // 清除采样完成标志，为下一次ADC采集做准备
     gCheckADC = false;
 
@@ -29,10 +31,9 @@ unsigned int adc_getValue(unsigned int number)
     HAL_ADC_Start_DMA(&hadc1, (uint32_t*)dma_buff, number);
 
     // 等待中断回调函数设置gCheckADC标志（减少超时时间，提高响应）
-    uint16_t timeout = 200;  // 减少超时等待（原2000）
+    uint16_t timeout = 1000;  // 减少超时等待
     while(gCheckADC == false && timeout > 0)
     {
-        HAL_Delay(0);  // 让出CPU，避免空转
         timeout--;
     }
 
@@ -40,6 +41,7 @@ unsigned int adc_getValue(unsigned int number)
     if(timeout == 0)
     {
         HAL_ADC_Stop_DMA(&hadc1);
+        Uart_Printf(&huart1,"time out!\r\n");
         return 0;  // 超时返回0，标识采集失败
     }
 
@@ -73,8 +75,8 @@ void Get_Analog_value(unsigned short *result)
         Switch_Address_2(!(i & 0x04));  // 地址线2 <-> i的bit2，控制的3位通道选择
 
         // 关键延时：地址切换后，等待多路选择器ADC输入信号稳定（避免信号抖动造成采样误差）
-        delay_us(10);  // 减少延时，提高响应速度
-        Anolag = adc_getValue(30);  // 减少采样次数，提高响应速度（原90次）
+        delay_us(5);  // 减少延时，提高响应速度
+        Anolag = adc_getValue(60);  //
 
         // 根据Direction控制存储顺序：正向i->result[i]，反向i->result[7-i]
         if(!Direction)
@@ -130,17 +132,16 @@ void normalizeAnalogValues(unsigned short *adc_value,double *Normal_factor,unsig
 
 float last_offset=0;
 
-/* 函数功能：将模拟值转换为偏移信号（二值化处理）
+/* 函数功能：将模拟值转换为偏移信号
    参数说明：
    adc_value - 原始ADC值数组
    Gray_white - 白色数组
    Gray_black - 黑色数组
    Offset - 输出的偏移量 */
-int8_t convertAnalogToOffset(unsigned short *Normal_value, unsigned short *Calibrated_white, 
-                            unsigned short *Calibrated_black, float filter_factor)
+int8_t convertAnalogToOffset(unsigned short *Normal_value, float filter_factor)
 {
        // 输入验证
-    if (Normal_value == NULL || Calibrated_white == NULL || Calibrated_black == NULL) {
+    if (Normal_value == NULL) {
         return last_offset;  // 返回上一次值，保持连续性
     }
     
@@ -155,12 +156,6 @@ int8_t convertAnalogToOffset(unsigned short *Normal_value, unsigned short *Calib
     // 计算每个传感器的权重
     for (uint8_t i = 0; i < 8; i++) 
     {
-        // 防止数据错误
-        if (Calibrated_white[i] <= Calibrated_black[i]) 
-        {
-            continue;
-        }
-        
         // 计算归一化权重，范围[0,1]
         // Normal_value范围：0(黑色) 到 4096(白色)
         // 权重：黑色=1，白色=0

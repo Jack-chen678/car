@@ -7,6 +7,7 @@
 #include "dma.h"
 #include "usart.h"
 #include "adc.h"
+#include "tim.h"
 
 /* ========== C ����ͷ�ļ� ========== */
 #include <stdio.h>
@@ -19,6 +20,7 @@
 /* ========== �����ͷ�ļ� ========== */
 #include "uart_driver.h"
 #include "ringbuffer.h"
+#include "encoder_driver.h"
 // #include "WouoUI.h"
 // #include "WouoUI_user.h"
 
@@ -29,6 +31,8 @@
 #include "uart_app.h"
 #include "gray_app.h"
 #include "No_MCU_Grayscale.h"
+#include "motor_app.h"
+#include "encoder_app.h"
 
 /* ========== ���ĵ�����ͷ�ļ� ========== */
 #include "Scheduler.h"

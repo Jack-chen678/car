@@ -83,8 +83,7 @@ extern uint16_t dma_buff[91];
 extern uint32_t gAdcResult;
 extern volatile bool gCheckADC;
 static void delay_us(uint32_t us);
-int8_t convertAnalogToOffset(unsigned short *Normal_value, unsigned short *Calibrated_white, 
-                            unsigned short *Calibrated_black, float filter_factor);
+int8_t convertAnalogToOffset(unsigned short *Normal_value, float filter_factor);
 #ifdef __cplusplus
 }
 #endif
