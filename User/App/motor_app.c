@@ -37,37 +37,39 @@ void Motor_Init(void)
 }
 
 
-void SetMotorPwm(int16_t pwm_value, uint8_t position)
+/**
+ * @brief  设置电机PWM
+ * @param  pwm_value: PWM值 (-100 ~ +100)，正值正转，负值反转
+ * @param  pwm_channel: PWM通道 (如TIM_CHANNEL_1)
+ * @param  dir_port: 方向控制GPIO端口 (如L_Dir_GPIO_Port)
+ * @param  dir_pin: 方向控制GPIO引脚 (如L_Dir_Pin)
+ * @note   正转: DIR=0, PWM=abs(pwm_value)
+ *         反转: DIR=1, PWM=abs(pwm_value)
+ */
+void SetMotorPwm(int16_t pwm_value, uint32_t pwm_channel, GPIO_TypeDef *dir_port, uint16_t dir_pin)
 {
     uint16_t abs_pwm;
-    bool dir_level;
+    GPIO_PinState dir_level;
 
-    /* 1. 确定方向和PWM绝对值 */
+    /* 1. 边界限制 */
+    if (pwm_value > MOTOR_PWM_MAX)  pwm_value = MOTOR_PWM_MAX;
+    if (pwm_value < -MOTOR_PWM_MAX) pwm_value = -MOTOR_PWM_MAX;
+
+    /* 2. 确定方向和PWM绝对值 */
     if (pwm_value >= 0)
     {
-      dir_level = GPIO_PIN_RESET;  // 正转，方向引脚电平保持为0
-      abs_pwm = pwm_value;
+        dir_level = GPIO_PIN_RESET;  /* 正转，方向引脚为0 */
+        abs_pwm = pwm_value;
     }
     else
     {
-      dir_level = GPIO_PIN_SET;    // 反转,方向引脚电平保持为1
-      abs_pwm = -pwm_value;        // 取绝对值
+        dir_level = GPIO_PIN_SET;    /* 反转，方向引脚为1 */
+        abs_pwm = -pwm_value;
     }
 
-    /* 2. 边界限制 */
-    if (abs_pwm > MOTOR_PWM_MAX)    abs_pwm = MOTOR_PWM_MAX;
-
-    /* 3. 根据dir参数设置对应电机 */
-    if (position == Right)
-    {
-      __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, abs_pwm);
-      HAL_GPIO_WritePin(R_Dir_GPIO_Port, R_Dir_Pin, dir_level);
-    }
-    else  // Left_Motor
-    {
-      __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, abs_pwm);
-      HAL_GPIO_WritePin(L_Dir_GPIO_Port, L_Dir_Pin, dir_level);
-    }
+    /* 3. 设置PWM和方向 */
+    __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, abs_pwm);
+    HAL_GPIO_WritePin(dir_port, dir_pin, dir_level);
 }
 
 
@@ -76,8 +78,8 @@ void SetMotorPwm(int16_t pwm_value, uint8_t position)
  */
 void Motor_Stop(void)
 {
-    SetMotorPwm(0,Right);
-    SetMotorPwm(0,Left);
+    SetMotorPwm(0, TIM_CHANNEL_1, R_Dir_GPIO_Port, R_Dir_Pin);  /* 右电机停止 */
+    SetMotorPwm(0, TIM_CHANNEL_2, L_Dir_GPIO_Port, L_Dir_Pin);  /* 左电机停止 */
 }
 
 

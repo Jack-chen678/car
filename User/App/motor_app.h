@@ -3,7 +3,7 @@
 
 #include "MyDefine.h"
 
-#define MOTOR_PWM_MAX           200      /* TIM2 ARR值，对应100%占空比 */
+#define MOTOR_PWM_MAX           100      /* TIM2 ARR值，对应100%占空比 */
 #define MOTOR_ENCODER_PPR       11      /* 编码器线数(脉冲/转) */
 #define MOTOR_ENCODER_RATIO     30      /* 减速比 */
 #define MOTOR_TASK_PERIOD_MS    10      /* 速度计算周期(ms) */
@@ -23,7 +23,7 @@ typedef struct
 void Motor_Init(void);
 
 /* 控制函数 */
-void SetMotorPwm(int16_t pwm_value, uint8_t position);
+void SetMotorPwm(int16_t pwm_value, uint32_t pwm_channel, GPIO_TypeDef *dir_port, uint16_t dir_pin);
 void Motor_Stop(void);                 /* 紧急停止 */
 
 
