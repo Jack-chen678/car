@@ -23,7 +23,7 @@ typedef struct
 void Motor_Init(void);
 
 /* 控制函数 */
-void SetMotorPwm(int16_t pwm_value, uint32_t pwm_channel, GPIO_TypeDef *dir_port, uint16_t dir_pin);
+void SetMotorPwm(int16_t pwm_value, uint32_t channel_in1, uint32_t channel_in2);
 void Motor_Stop(void);                 /* 紧急停止 */
 
 
