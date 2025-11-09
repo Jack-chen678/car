@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2024 STMicroelectronics.
+  * Copyright (c) 2025 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -35,7 +36,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define CALIBRATION_MODE 0  // 0=正常模式, 1=校准模式
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -96,28 +97,12 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
+  MX_TIM3_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
-  #if CALIBRATION_MODE
-    // ========== 校准模式 ==========
-    // 用途：获取黑白线的ADC校准值
-    // 使用步骤：
-    // 1. 将传感器放在白色区域，上电查看串口打印的ADC值
-    // 2. 记录8个通道的值，更新white数组
-    // 3. 将传感器放在黑色区域，查看串口打印的ADC值
-    // 4. 记录8个通道的值，更新black数组
-    // 5. 将CALIBRATION_MODE改为0，重新编译运行
-
-    No_MCU_Ganv_Sensor_Init_Frist(&sensor);  // 首次初始化（不带校准值）
-
-  #else
-    // ========== 正常运行模式 ==========
-    No_MCU_Ganv_Sensor_Init(&sensor, white, black);  // 使用校准值初始化
-    HAL_Delay(10);
-  #endif
-
   Uart_Init();
-
+  Motor_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -127,34 +112,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  
-  #if CALIBRATION_MODE
-    uint8_t Digtal=0;
-    No_Mcu_Ganv_Sensor_Task_Without_tick(&sensor);
-    Digtal = Get_Digtal_For_User(&sensor);
-    // 校准模式：每500ms打印一次原始ADC值
-//    Uart_Printf(&huart1, "ADC: %d,%d,%d,%d,%d,%d,%d,%d\r\n",
-//                sensor.Analog_value[0], sensor.Analog_value[1],
-//                sensor.Analog_value[2], sensor.Analog_value[3],
-//                sensor.Analog_value[4], sensor.Analog_value[5],
-//                sensor.Analog_value[6], sensor.Analog_value[7]);
-      
-    
-    //HAL_Delay(500);
-    #else
-    //
-//    uint8_t Digtal=0;
-    No_Mcu_Ganv_Sensor_Task_Without_tick(&sensor);
-//    Digtal = ~Get_Digtal_For_User(&sensor);
-//    Uart_Printf(&huart1, "Digital: %d-%d-%d-%d-%d-%d-%d-%d\r\n",
-//                (Digtal>>0)&0x01, (Digtal>>1)&0x01,
-//                (Digtal>>2)&0x01, (Digtal>>3)&0x01,
-//                (Digtal>>4)&0x01, (Digtal>>5)&0x01,
-//                (Digtal>>6)&0x01, (Digtal>>7)&0x01);
-  #endif
-    Get_Normalize_For_User(&sensor, Normal);
-    offset=CalculateNormalizedValue(Normal,1);
-    Uart_Printf(&huart1,"%d\r\n",offset);
+    SetRightMotorPwm(10);  /* 右电机前进 */
+    SetLeftMotorPwm(10);   /* 左电机前进 */
   }
   /* USER CODE END 3 */
 }
@@ -205,36 +164,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-int32_t CalculateNormalizedValue(unsigned short normal[8],uint8_t field)
-{
-//    // 定义权值数组，从左到右对应-7,-5,-3,-1,1,3,5,7
-//    const short weights[8] = {-7, -5, -3, -1, 1, 3, 5, 7};
-//    
-//    float weighted_sum = 0.0f;          // 加权和
-//    float original_sum = 0.0f; // 原始数据和
-//    static float last_value = 0.0f;   // 上一次的值
-//    static float filter_value = 0.0f;  // 滤波后的值
-//    const float filter_alpha = 0.3f;   // 滤波系数 (0.1-0.5，越小越平滑)
-//    
-//    // 计算加权和和原始数据和
-//    for (int i = 0; i < 8; i++) {
-//        float value = field ? (4096.0f - normal[i]) : normal[i];
-//        weighted_sum += value * weights[i];  // 每个数据乘以对应权值
-//        original_sum += value;               // 累加原始数据
-//    }
-//    
-//    // 计算并返回归一化值
-//    if (original_sum != 0.0f) { // 避免除以0的情况
-//        last_value = weighted_sum / original_sum;
 
-//        // 一阶低通滤波，减少数据波动
-//        filter_value = filter_alpha * last_value + (1.0f - filter_alpha) * filter_value;
-
-//        return (int32_t)(filter_value * 1000); // 放大1000倍返回，保持精度
-//    } else {
-//        return (int32_t)(filter_value * 1000); // 如果原始数据和为0，返回滤波后的值
-//    }
-}
 /* USER CODE END 4 */
 
 /**

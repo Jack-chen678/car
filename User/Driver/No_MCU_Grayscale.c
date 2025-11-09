@@ -26,12 +26,13 @@ unsigned int adc_getValue(unsigned int number)
     memset((uint16_t*)dma_buff, 0, sizeof(dma_buff));
 
     // 启动ADC DMA采集，采集完成后触发中断回调
-    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)dma_buff, 90);
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)dma_buff, number);
 
-    // 等待中断回调函数设置gCheckADC标志
-    uint16_t timeout = 2000;
+    // 等待中断回调函数设置gCheckADC标志（减少超时时间，提高响应）
+    uint16_t timeout = 200;  // 减少超时等待（原2000）
     while(gCheckADC == false && timeout > 0)
     {
+        HAL_Delay(0);  // 让出CPU，避免空转
         timeout--;
     }
 
@@ -72,8 +73,8 @@ void Get_Analog_value(unsigned short *result)
         Switch_Address_2(!(i & 0x04));  // 地址线2 <-> i的bit2，控制的3位通道选择
 
         // 关键延时：地址切换后，等待多路选择器ADC输入信号稳定（避免信号抖动造成采样误差）
-        delay_us(100);  // 延时确保信号稳定
-        Anolag = adc_getValue(90);  // 采集当前通道的ADC值（90次采样求平均值，提高精度）
+        delay_us(10);  // 减少延时，提高响应速度
+        Anolag = adc_getValue(30);  // 减少采样次数，提高响应速度（原90次）
 
         // 根据Direction控制存储顺序：正向i->result[i]，反向i->result[7-i]
         if(!Direction)
@@ -126,6 +127,86 @@ void normalizeAnalogValues(unsigned short *adc_value,double *Normal_factor,unsig
         result[i]=n;
     }
 }
+
+float last_offset=0;
+
+/* 函数功能：将模拟值转换为偏移信号（二值化处理）
+   参数说明：
+   adc_value - 原始ADC值数组
+   Gray_white - 白色数组
+   Gray_black - 黑色数组
+   Offset - 输出的偏移量 */
+int8_t convertAnalogToOffset(unsigned short *Normal_value, unsigned short *Calibrated_white, 
+                            unsigned short *Calibrated_black, float filter_factor)
+{
+       // 输入验证
+    if (Normal_value == NULL || Calibrated_white == NULL || Calibrated_black == NULL) {
+        return last_offset;  // 返回上一次值，保持连续性
+    }
+    
+    // 限制滤波系数范围
+    if (filter_factor < 0.0f) filter_factor = 0.0f;
+    if (filter_factor > 1.0f) filter_factor = 1.0f;
+    
+    float Weight[8] = {0};//看到"黑线的程度",0表示传感器完全在白色区域上，1表示完全在黑色上
+    float total_weight = 0.0f;
+    float offset = 0.0f;
+    
+    // 计算每个传感器的权重
+    for (uint8_t i = 0; i < 8; i++) 
+    {
+        // 防止数据错误
+        if (Calibrated_white[i] <= Calibrated_black[i]) 
+        {
+            continue;
+        }
+        
+        // 计算归一化权重，范围[0,1]
+        // Normal_value范围：0(黑色) 到 4096(白色)
+        // 权重：黑色=1，白色=0
+        float normalized_ratio = (float)Normal_value[i] / 4096.0f;
+        Weight[i] = 1.0f - normalized_ratio;
+        total_weight += Weight[i];
+		
+		
+    }
+    
+    // 计算加权平均偏移量（物理偏移：-3.5 ~ 3.5）
+    for (uint8_t i = 0; i < 8; i++) 
+    {
+        offset += (i - 3.5f) * Weight[i];
+    }
+    
+    // 防止除零：如果total_weight为0，说明没有检测到黑线，返回上次值
+    if (total_weight < 0.01f) 
+    {
+        return (int8_t)last_offset;
+    }
+    offset /= total_weight;
+    
+    // ========== 关键修改部分 ==========
+    // 将物理偏移映射到 -100 ~ 100 范围
+    const float PHYSICAL_RANGE = 3.5f;   // 物理偏移的最大绝对值
+    const float TARGET_RANGE = 100.0f;   // 目标范围的最大值
+    const float SCALE_FACTOR = TARGET_RANGE / PHYSICAL_RANGE;
+    
+    float mapped_offset = offset * SCALE_FACTOR;
+    
+    // 限制范围到 -100 ~ 100
+    if (mapped_offset < -100.0f) mapped_offset = -100.0f;
+    if (mapped_offset > 100.0f) mapped_offset = 100.0f;
+    // ==================================
+    
+    // 一阶低通滤波
+    float filtered_offset = filter_factor * mapped_offset + 
+                          (1.0f - filter_factor) * last_offset;
+    
+    last_offset=filtered_offset;//更新上一次滤波后的输出
+    
+    // 四舍五入转换为整数
+    return (int8_t)(filtered_offset + 0.5f);
+}
+
 
 /* 功能说明：灰度传感器结构体初始化（首次初始化）
    参数说明：sensor - 传感器结构体指针 */

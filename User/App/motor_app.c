@@ -10,9 +10,11 @@ static void Motor_L_Init(void)
 {
     /* 1. 启动PWM输出 (TIM2_CH2) */
     HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+    
     /* 2. 设置初始安全状态 */
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 0);  /* PWM占空比0% */
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 0);  /* ccr为0 */
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);
 }
 
 /**
@@ -21,10 +23,12 @@ static void Motor_L_Init(void)
 static void Motor_R_Init(void)
 {
     /* 1. 启动PWM输出 (TIM2_CH1) */
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+    
     /* 2. 设置初始安全状态 */
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, 0);  /* PWM占空比0% */
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_3, 0);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_4, 0); 
 }
 
 /**
@@ -39,7 +43,7 @@ void Motor_Init(void)
 
 /**
  * @brief  设置电机PWM
- * @param  pwm_value: PWM值 (-100 ~ +100)，正值正转，负值反转
+ * @param  pwm_value: PWM值 (-80 ~ +80)，正值正转，负值反转
  * @param  channel_in1: IN1控制通道 (如TIM_CHANNEL_1)
  * @param  channel_in2: IN2控制通道 (如TIM_CHANNEL_2)
  * @note   正转: IN1=0, IN2=PWM
@@ -64,13 +68,31 @@ void SetMotorPwm(int16_t pwm_value, uint32_t channel_in1, uint32_t channel_in2)
     }
 }
 
+/**
+ * @brief  设置左电机PWM
+ * @param  pwm_value: PWM值 (-80 ~ +80)，正值正转，负值反转
+ */
+void SetLeftMotorPwm(int16_t pwm_value)
+{
+    SetMotorPwm(pwm_value, TIM_CHANNEL_1, TIM_CHANNEL_2);
+}
+
+/**
+ * @brief  设置右电机PWM
+ * @param  pwm_value: PWM值 (-80 ~ +80)，正值正转，负值反转
+ */
+void SetRightMotorPwm(int16_t pwm_value)
+{
+    SetMotorPwm(pwm_value, TIM_CHANNEL_3, TIM_CHANNEL_4);
+}
+
 
 /**
  * @brief  紧急停止
  */
 void Motor_Stop(void)
 {
-    SetMotorPwm(0, TIM_CHANNEL_1, TIM_CHANNEL_2);  /* 左电机停止 */
-    /* TODO: 右电机停止 - 需要配置其他定时器通道后添加 */
+    SetLeftMotorPwm(0);   /* 左电机停止 */
+    SetRightMotorPwm(0);  /* 右电机停止 */
 }
 
