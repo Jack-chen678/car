@@ -1,12 +1,7 @@
 #include "uart_app.h"
-#include "pid_app.h"
-#include "encoder_driver.h"
-#include "motor_app.h"
-#include <string.h>
 
 unsigned char uart_data_buffer[BUFFER_SIZE]; // 数据处理缓冲区
 unsigned char uart2_data_buffer[BUFFER_SIZE]; // 数据处理缓冲区
-unsigned char uart3_data_buffer[BUFFER_SIZE]; // 数据处理缓冲区
 
 /* 全局变量 */
 DebugMode_t g_debug_mode = DEBUG_MODE_STOP;
@@ -41,34 +36,6 @@ void Uart1_Task(void)
     }
 }
 
-
-void Uart2_Task(void)
-{
-//    uint16_t uart2_data_len = rt_ringbuffer_data_len(&ring_buffer2);
-//    if(uart2_data_len > 0)
-//    {
-//        rt_ringbuffer_get(&ring_buffer2, uart2_data_buffer,uart2_data_len);
-//        
-//      Uart_Printf(&huart2,"%f,%f\r\n",left_encoder.speed_cm_s,pid_speed_left.target);
-//        memset(uart2_data_buffer, 0, uart2_data_len);
-//    }
-    
-}
-
-
-void Uart3_Task(void)
-{
-//    uint16_t uart2_data_len = rt_ringbuffer_data_len(&ring_buffer2);
-//    unsigned char res=0;
-//  // 处理USART3数据
-//    if(uart2_data_len > 0)
-//    {
-//    rt_ringbuffer_get(&ring_buffer2, uart2_data_buffer,uart2_data_len);
-//    memset(uart2_data_buffer, 0, uart2_data_len);
-
-//    }
-      
-}
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
@@ -109,11 +76,13 @@ void ParseCommand(char *cmd)
     DebugMode_t mode = DEBUG_MODE_STOP;
 
     // 1. 判断是左轮还是右轮
-    if(strstr(cmd, "_L") != NULL) {
+    if(strstr(cmd, "_L") != NULL)
+    {
         pid = &SpeedPID_Left;
         mode = DEBUG_MODE_LEFT;
     }
-    else if(strstr(cmd, "_R") != NULL) {
+    else if(strstr(cmd, "_R") != NULL)
+    {
         pid = &SpeedPID_Right;
         mode = DEBUG_MODE_RIGHT;
     }
@@ -131,12 +100,14 @@ void ParseCommand(char *cmd)
             pid->Kd = value;
         }
         else if(strstr(cmd, "Aim")) {
-            pid->target_val = value;
+            pid->target_val = (int32_t)value;
         }
         g_debug_mode = mode;
     }
+
     // 3. 停止命令
-    else if(strcmp(cmd, "@Stop") == 0) {
+    if(strcmp(cmd, "@Stop") == 0)
+    {
         Motor_Stop();
         g_debug_mode = DEBUG_MODE_STOP;
     }
@@ -152,13 +123,13 @@ void SendDebugData(void)
     {
         case DEBUG_MODE_LEFT:
             Uart_Printf(&huart1, "%f,%f\n",
-                SpeedPID_Left.target_val,
+                (float)SpeedPID_Left.target_val,  // 显式转换为float
                 left_encoder.speed_cm_s);
             break;
 
         case DEBUG_MODE_RIGHT:
             Uart_Printf(&huart1, "%f,%f\n",
-                SpeedPID_Right.target_val,
+                (float)SpeedPID_Right.target_val,  // 显式转换为float
                 right_encoder.speed_cm_s);
             break;
 
