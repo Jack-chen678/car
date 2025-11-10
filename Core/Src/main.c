@@ -100,26 +100,30 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   Uart_Init();
   Motor_Init();
+  Encoder_Init();
+  HAL_TIM_Base_Start_IT(&htim6);
   /* USER CODE END 2 */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  static uint32_t last_print_time = 0;
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    SetRightMotorPwm(10);  /* 右电机前进 */
-    SetLeftMotorPwm(10);   /* 左电机前进 */
-    /*
-      改进前 - 参数难以理解：
-      ：提升电机控制代码可读性
-  SetMotorPwm(10, TIM_CHANNEL_3, TIM_CHANNEL_4);  // 谁是左？谁是右？
-  SetMotorPwm(10, TIM_CHANNEL_1, TIM_CHANNEL_2);
-      */
+    // 处理串口命令
+    Uart1_Task();
+
+    // 每10ms发送一次调试数据
+    if (HAL_GetTick() - last_print_time >= 10)
+    {
+        SendDebugData();
+        last_print_time = HAL_GetTick();
+    }
   }
   /* USER CODE END 3 */
 }
