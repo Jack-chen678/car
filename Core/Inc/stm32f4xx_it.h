@@ -27,7 +27,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "MyDefine.h"
+#include "uart_driver.h"  // 用于访问USART_RX_STA和USART_RX_BUF
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -57,10 +58,11 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 void ADC_IRQHandler(void);
 void USART1_IRQHandler(void);
+void TIM6_DAC_IRQHandler(void);
 void DMA2_Stream0_IRQHandler(void);
 void DMA2_Stream2_IRQHandler(void);
 /* USER CODE BEGIN EFP */
-
+extern uint8_t time_cnt;
 /* USER CODE END EFP */
 
 #ifdef __cplusplus

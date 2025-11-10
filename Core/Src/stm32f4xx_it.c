@@ -22,7 +22,6 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "No_MCU_Grayscale.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +57,7 @@
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
 extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim6;
 extern DMA_HandleTypeDef hdma_usart1_rx;
 extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
@@ -222,12 +222,58 @@ void ADC_IRQHandler(void)
 void USART1_IRQHandler(void)
 {
   /* USER CODE BEGIN USART1_IRQn 0 */
+  uint8_t res;
+  if(USART1->SR&(1<<5))//接收到数据（接收缓冲区非空）
+  {
+      res=USART1->DR; //读操作
+      if((USART_RX_STA&0x8000)==0)//接收未完成
+      {
+          // 状态1：已经收到 0x0D，现在检查是否是 0x0A
+          if(USART_RX_STA&0x4000)//接收到了0x0d
+          {
+              if(res!=0x0a)USART_RX_STA=0;//接收错误,重新开始
+              else
+              {
+                  USART_RX_STA|=0x8000;    //接收完成了
+                  USART_RX_BUF[USART_RX_STA & 0X3FFF] = '\0';// 添加字符串结束符
+              }
+          }
 
+          // 状态2：正常接收字符
+          else //还没收到0X0D
+          {
+              if(res==0x0d)USART_RX_STA|=0x4000; // 设置 bit14=1，进入"等待0x0A"状态
+              else
+              {
+                  USART_RX_BUF[USART_RX_STA&0X3FFF]=res;
+                  USART_RX_STA++;
+                  if(USART_RX_STA>(USART_REC_LEN-1))USART_RX_STA=0;//接收数据错误,重新开始接收
+              }
+          }
+      }
+  }
   /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
+
+  /* 原HAL库中断处理（已禁用，保留代码）*/
+  // HAL_UART_IRQHandler(&huart1);
+
   /* USER CODE BEGIN USART1_IRQn 1 */
 
   /* USER CODE END USART1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM6 global interrupt, DAC1 and DAC2 underrun error interrupts.
+  */
+void TIM6_DAC_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM6_DAC_IRQn 0 */
+
+  /* USER CODE END TIM6_DAC_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim6);
+  /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
+
+  /* USER CODE END TIM6_DAC_IRQn 1 */
 }
 
 /**
@@ -259,9 +305,28 @@ void DMA2_Stream2_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+uint8_t time_cnt=0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM6)
+    {
+      time_cnt++;
+      if(time_cnt>=10)
+      {
+          Encoder_Task();
+          int16_t output_L=(int16_t)(PID_Calculate(&SpeedPID_Left,left_encoder.speed_cm_s)+0.5f);
+          SetLeftMotorPwm(output_L);
+          time_cnt=0;
+      }
+    }
+}
+  
+  
+  
+  
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    //�� DMA������� ʱ�����жϻص�
+    // DMA completed the transmission
     if (hadc == &hadc1) 
     {
         gCheckADC=true;

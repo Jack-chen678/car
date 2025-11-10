@@ -17,14 +17,21 @@ struct rt_ringbuffer ring_buffer;
 struct rt_ringbuffer ring_buffer2;
 struct rt_ringbuffer ring_buffer3;
 
-extern unsigned char uart2_data_buffer[BUFFER_SIZE];
+// 普通中断接收方式的变量定义（仅用于USART1）
+uint16_t USART_RX_STA = 0;              // 接收状态标志
+uint8_t USART_RX_BUF[USART_REC_LEN] = {0}; // 接收缓冲区
 
 void Uart_Init(void)
 {
-  // 初始化USART1
-  rt_ringbuffer_init(&ring_buffer, ring_buffer_input, BUFFER_SIZE);
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, uart_rx_dma_buffer, BUFFER_SIZE);
-  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+  // 初始化USART1 - DMA方式（已禁用，保留代码）
+  // rt_ringbuffer_init(&ring_buffer, ring_buffer_input, BUFFER_SIZE);
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, uart_rx_dma_buffer, sizeof(uart_rx_dma_buffer));
+  // __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+
+  // 初始化USART1 - 普通中断接收方式
+  USART_RX_STA = 0;
+  memset(USART_RX_BUF, 0, USART_REC_LEN);
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);  // 使能接收中断
 }
 
 int Uart_Printf(UART_HandleTypeDef *huart, const char *format, ...)
@@ -43,31 +50,5 @@ int Uart_Printf(UART_HandleTypeDef *huart, const char *format, ...)
 	return len;
 }
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-    // 1. 确认是目标串口 (USART1)
-    if (huart->Instance == USART1)
-    {
-        // 2. 紧急停止当前的 DMA 传输 (如果还在进行中)
-        //    因为空闲中断意味着发送方已经停止，防止 DMA 继续等待或出错
-        HAL_UART_DMAStop(huart);
 
-        // 3. 将 DMA 缓冲区中有效的数据 (Size 个字节) 复制到待处理缓冲区
-        rt_ringbuffer_put(&ring_buffer, uart_rx_dma_buffer, Size);
-        // 注意：这里使用了 Size，只复制实际接收到的数据
-        
-        // 4. 举起"到货通知旗"，告诉主循环有数据待处理
-        
-        // 5. 清空 DMA 接收缓冲区，为下次接收做准备
-        //    虽然 memcpy 只复制了 Size 个，但清空整个缓冲区更保险
-        memset(uart_rx_dma_buffer, 0, sizeof(uart_rx_dma_buffer));
-
-        // 6. **关键：重新启动下一次 DMA 空闲接收**
-        //    必须再次调用，否则只会接收这一次
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, uart_rx_dma_buffer, sizeof(uart_rx_dma_buffer));
-        
-        // 7. 如果之前关闭了半满中断，可能需要在这里再次关闭 (根据需要)
-         __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
-    }
-}
 
